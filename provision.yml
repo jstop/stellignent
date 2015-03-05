@@ -1,0 +1,59 @@
+---
+################################################
+## Section 1  -  EC2 Provisioning
+#################################################
+- name: Provision ec2 instances based on the environment
+  hosts: localhost
+  connection: local
+  gather_facts: False
+
+  vars_files:
+    - vars/dev-environment.yml
+    - vars/aws-creds.yml
+
+  tasks:
+
+  - name: Create required security groups
+    ec2_group:
+      name: "{{ item.name }}"
+      description: "{{ item.desc }}"
+      rules: "{{ item.rules }}"
+      region: "{{ ec2_region }}"
+      ec2_access_key: "{{ ec2_access_key }}"
+      ec2_secret_key: "{{ ec2_secret_key }}"
+    with_items: security_groups
+
+  - name: Launch instances
+    ec2: 
+      region: "{{ ec2_region }}"
+      ec2_access_key: "{{ ec2_access_key }}"
+      ec2_secret_key: "{{ ec2_secret_key }}"
+      keypair: "{{ item.keypair }}"
+      group: "{{ item.group }}"
+      instance_type: "{{ item.instance_type }}"
+      image: "{{ item.image }}"
+      instance_tags: "{{ item.instance_tags }}"
+      exact_count: "{{ item.exact_count }}"
+      count_tag: "{{ item.count_tag }}"
+      wait: true
+    register: ami_instance
+    with_items: ec2_instances
+  - debug: var=ami_instance.results.0.tagged_instances
+
+  - name: waiting for ssh to start
+    wait_for: port=22 host={{ ami_instance.results.0.tagged_instances.0.public_ip }} timeout=300 search_regex=OpenSSH
+
+  - name: add host to group
+    add_host: name={{ ami_instance.results.0.tagged_instances.0.public_ip }} groups=target
+
+  - name: breathing room
+    pause: seconds=10
+
+################################################
+## Section 2  - SERVER CONFIGURATION
+#################################################
+- hosts: target
+  user: root
+
+  roles:
+    - apache

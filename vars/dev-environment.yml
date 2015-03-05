@@ -1,0 +1,36 @@
+---
+ec2_region: us-east-1
+instances_keypair: personal-aws 
+image_id: ami-8997afe0 # Centos 6.5 from marketplace
+
+security_groups:
+  - name: ssh
+    desc: the security group for ssh
+    rules:
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+
+  - name: web
+    desc: the security group for the web server 
+    rules:
+      - proto: tcp
+        from_port: "80"
+        to_port: "80"
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: "443"
+        to_port: "443"
+        cidr_ip: 0.0.0.0/0
+
+ec2_instances:
+  - instance_type: t1.micro
+    image: "{{ image_id }}"
+    keypair: "{{instances_keypair}}"
+    group: ['default','web', 'ssh'] 
+    instance_tags: 
+        Name: web
+    exact_count: 1 
+    count_tag: 
+        Name: web
